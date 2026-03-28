@@ -1,6 +1,7 @@
 import unittest
 import sys
 import types
+from pathlib import Path
 from unittest import mock
 
 import auto_scheduler
@@ -60,6 +61,18 @@ class ProxyNormalizationTests(unittest.TestCase):
 
         self.assertEqual(config["upload_api_url"], "https://upload.example.com")
         self.assertEqual(config["upload_api_token"], "upload-token")
+
+    def test_auto_scheduler_main_runs_once_without_sleep(self):
+        with mock.patch("auto_scheduler._load_account_count_config", return_value={}):
+            with mock.patch("auto_scheduler.count_valid_accounts_local", return_value=999):
+                with mock.patch("auto_scheduler.time.sleep") as sleep_mock:
+                    auto_scheduler.main()
+
+        sleep_mock.assert_not_called()
+
+    def test_scheduler_workflow_uses_staggered_cron(self):
+        workflow = Path(".github/workflows/scheduler.yml").read_text(encoding="utf-8")
+        self.assertIn("cron: '7 * * * *'", workflow)
 
 
 if __name__ == "__main__":

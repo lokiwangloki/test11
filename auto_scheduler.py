@@ -342,23 +342,9 @@ def trigger_registration(params: dict, cfg: dict) -> bool:
         return False
 
 
-# ================= 主循环 =================
-
-def main():
-    print("=" * 60)
-    print("  账号自动补充调度器")
-    print(f"  检查间隔  : {CHECK_INTERVAL_SECONDS // 60} 分钟")
-    print(f"  触发阈值  : < {ACCOUNT_THRESHOLD} 个有效账号")
-    print(f"  注册脚本  : {REGISTER_SCRIPT}")
-    print(f"  最大探测数: {PROBE_MAX_COUNT if PROBE_MAX_COUNT > 0 else '不限制（全量）'}")
-    print(f"  探测并发数: {PROBE_WORKERS}")
-    print("=" * 60)
-
+def run_once():
     cfg = _load_account_count_config()
     use_cpa = bool(cfg.get("upload_api_url") and cfg.get("upload_api_token"))
-    print(f"[Info] 账号计数方式: {'CPA API 探测（401/403自动删除）' if use_cpa else '本地文件统计'}")
-    print(f"[Info] 按 Ctrl+C 停止调度器\n")
-
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"\n{'─' * 60}")
     print(f"[{now_str}] 开始检测有效账号数量...")
@@ -388,11 +374,27 @@ def main():
     else:
         print(f"[检测] ✅ 账号数量充足，无需注册")
 
-    next_check = datetime.fromtimestamp(time.time() + CHECK_INTERVAL_SECONDS)
-    print(f"[调度] 下次检查时间: {next_check.strftime('%Y-%m-%d %H:%M:%S')}")
+    print("[调度] 本轮执行完成，等待 GitHub Actions 下一次定时触发")
+
+
+# ================= 主入口 =================
+
+def main():
+    print("=" * 60)
+    print("  账号自动补充调度器")
+    print(f"  调度模式  : 单次执行后退出")
+    print(f"  触发阈值  : < {ACCOUNT_THRESHOLD} 个有效账号")
+    print(f"  注册脚本  : {REGISTER_SCRIPT}")
+    print(f"  最大探测数: {PROBE_MAX_COUNT if PROBE_MAX_COUNT > 0 else '不限制（全量）'}")
+    print(f"  探测并发数: {PROBE_WORKERS}")
+    print("=" * 60)
 
     try:
-        time.sleep(CHECK_INTERVAL_SECONDS)
+        cfg = _load_account_count_config()
+        use_cpa = bool(cfg.get("upload_api_url") and cfg.get("upload_api_token"))
+        print(f"[Info] 账号计数方式: {'CPA API 探测（401/403自动删除）' if use_cpa else '本地文件统计'}")
+        print(f"[Info] 本次运行结束后会直接退出，等待下次 workflow 触发\n")
+        run_once()
     except KeyboardInterrupt:
         print("\n[调度] 已手动停止调度器")
 
